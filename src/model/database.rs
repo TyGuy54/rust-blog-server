@@ -18,18 +18,18 @@ pub async fn create_blog_post(
         r#"
         INSERT INTO blog_posts (
             title, 
+            url, 
             author, 
             created_date,
-            url, 
             description, 
             content) 
         VALUES (?, ?, ?, ?, ?, ?);
         "#,
             title,
-            author,
             url,
-            created_date,
+            author,
             description,
+            created_date,
             content
     )
         .execute(&mut connection)
@@ -60,7 +60,7 @@ pub async fn get_blog_posts(pool: &Pool<Sqlite>) -> DBResult<Vec<BlogPost>> {
         .unwrap();
     let tasks = sqlx::query_as::<_, BlogPost>(
         r#"
-        SELECT id, title, author, url, description, content from blog_posts;
+        SELECT id, title, author, url, created_date, description, content from blog_posts;
         "#
     )
         .fetch_all(&mut connection)

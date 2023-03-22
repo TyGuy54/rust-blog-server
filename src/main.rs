@@ -1,5 +1,10 @@
 use rocket::*;
 use rocket::routes;
+// use rocket_cors::Cors;
+// use std::str::FromStr;
+use rocket::http::Header;
+use rocket::fairing::{Fairing, Info, Kind};
+// use rocket_cors::{AllowedOrigins, AllowedHeaders, CorsOptions, AllowedMethods};
 
 mod model;
 use model::requests::BlogPostRequest;
@@ -8,6 +13,25 @@ use model::database::{create_blog_post, get_blog_post, get_blog_posts, DBResult}
 use rocket::serde::json::Json;
 use rocket::State;
 use sqlx::{Pool, Sqlite, SqlitePool};
+
+pub struct CORS;
+ 
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers to responses",
+            kind: Kind::Response
+        }
+    }
+
+    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, PATCH, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+    }
+}
 
 #[post("/create_aritcal", format = "json", data = "<blog_details>")]
 async fn create(blog_details: Json<BlogPostRequest>, pool: &State<Pool<Sqlite>>) -> DBResult<Json<BlogPost>> {
@@ -23,7 +47,7 @@ async fn create(blog_details: Json<BlogPostRequest>, pool: &State<Pool<Sqlite>>)
     Ok(Json(blog_detail))
 }
 
-#[get("/view_artical")]
+#[get("/view_articals")]
 async fn index(pool: &State<Pool<Sqlite>>) -> DBResult<Json<Vec<BlogPost>>> {
     let tasks = get_blog_posts(pool).await?;
     Ok(Json(tasks))
@@ -37,6 +61,7 @@ async fn detail(id: i64, pool: &State<Pool<Sqlite>>) -> DBResult<Json<BlogPost>>
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
+
     let pool = SqlitePool::connect("sqlite://data.db")
         .await
         .expect("Couldn't connect to sqlite database");
@@ -46,7 +71,8 @@ async fn main() -> Result<(), rocket::Error> {
         .await
         .expect("Couldn't migrate the database tables");
 
-    let _rocket = rocket::build()
+    let _ = rocket::build()
+        .attach(CORS)
         .mount("/", routes![index, create, detail])
         .manage(pool)
         .launch()
